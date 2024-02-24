@@ -54,8 +54,7 @@ The retry policy is configured in your app settings JSON file under the system n
     "RetryPolicy": {
       "MaxRetries": 3,
       "RetryType": "Exponential",
-      "BackoffExponentialBase": 2,
-      "RetryInterval": 1
+      "BackoffExponentialBase": 2
     }
   }
 }
