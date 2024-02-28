@@ -125,11 +125,9 @@ The circuit breaker policy is configured under the `RetryPolicy` section for eac
       "RetryType": "Exponential",
       "BackoffExponentialBase": 2,
       "CircuitBreakerPolicy": {
-        "FailureThreshold": 5,
+        "FailureThreshold": 0.5,
         "BreakDurationSeconds": 30,
         "SamplingDurationSeconds": 60,
-        "ResetCountOnSuccess": true,
-        "TimeoutForHalfOpenSeconds": 10,
         "OpenCircuitForHttpCodes": [500, 503],
         "OpenCircuitForExceptions": ["System.Net.Http.HttpRequestException"],
         "JitterStrategy": {
@@ -146,7 +144,7 @@ The circuit breaker policy is configured under the `RetryPolicy` section for eac
 
 ### FailureThreshold
 
-The `FailureThreshold` represents the number of consecutive failures that need to occur to trigger the circuit breaker. For example, if set to `5`, the circuit breaker will open after encountering 5 consecutive failures.
+This is a fractional value between 0 and 1, representing the proportion of failures needed to open the circuit. For example, if failureThreshold is set to 0.5 (50%), the circuit breaker will open when the failure rate exceeds 50% during the samplingDuration.
 
 ### BreakDurationSeconds
 
@@ -155,14 +153,6 @@ The `BreakDurationSeconds` specifies the duration in seconds for which the circu
 ### SamplingDurationSeconds
 
 The `SamplingDurationSeconds` defines the duration in seconds over which failure occurrences are counted. This duration is crucial for evaluating whether the failure threshold is met.
-
-### ResetCountOnSuccess
-
-The `ResetCountOnSuccess` property indicates whether the failure count should reset on a successful operation. If set to `true`, a successful operation will reset the consecutive failure count.
-
-### TimeoutForHalfOpenSeconds
-
-The `TimeoutForHalfOpenSeconds` determines the duration in seconds during which the circuit breaker transitions to the half-open state. In the half-open state, a limited number of requests are allowed to pass through to test system recovery.
 
 ### OpenCircuitForHttpCodes
 
@@ -186,11 +176,9 @@ The `JitterStrategy` configuration allows introducing jitter in retry intervals 
 
 Suppose your system encounters transient failures during HTTP requests to [https://system3.example.com](https://system3.example.com). With the provided configuration:
 
-- **FailureThreshold**: `5` (Circuit breaks after 5 consecutive failures)
+- **FailureThreshold**: `0.5` (Circuit breaks after 50% failures in sampling duration)
 - **BreakDurationSeconds**: `30` (Circuit remains open for 30 seconds once triggered)
 - **SamplingDurationSeconds**: `60` (Failure occurrences are counted over 60 seconds)
-- **ResetCountOnSuccess**: `true` (Failure count resets on a successful operation)
-- **TimeoutForHalfOpenSeconds**: `10` (Duration during which the circuit transitions to the half-open state)
 - **OpenCircuitForHttpCodes**: `[500, 503]` (Circuit opens for HTTP status codes 500 and 503)
 - **OpenCircuitForExceptions**: `["System.Net.Http.HttpRequestException"]` (Circuit opens for the specified exception type)
 - **JitterStrategy**:
@@ -207,11 +195,9 @@ Adjust the parameters based on your specific requirements and scenarios.
 - The system makes the initial request to [https://system3.example.com](https://system3.example.com), and both requests encounter a failure.
 - **Circuit Status**: Closed (initial state)
 - **Configuration Read** (for both parallel requests):
-  - FailureThreshold: `5`
+  - FailureThreshold: `0.5`
   - BreakDurationSeconds: `30`
   - SamplingDurationSeconds: `60`
-  - ResetCountOnSuccess: `true`
-  - TimeoutForHalfOpenSeconds: `10`
   - OpenCircuitForHttpCodes: `[500, 503]`
   - OpenCircuitForExceptions: `["System.Net.Http.HttpRequestException"]`
   - JitterStrategy:
@@ -244,7 +230,7 @@ Adjust the parameters based on your specific requirements and scenarios.
 - Request 2 does not encounter a failure during Attempt 3.
 - The failure count for Request 2 does not increment.
 
-- Since the cumulative failure count across both parallel requests (Request 1 and Request 2) reaches the `FailureThreshold` of 5, the circuit opens.
+- Since the cumulative failure count across both parallel requests (Request 1 and Request 2) reaches the `FailureThreshold`, the circuit opens.
 
 - **Circuit Status**: Open
 - Subsequent attempts during the `BreakDurationSeconds` will fail fast without attempting to execute the actual operation.
