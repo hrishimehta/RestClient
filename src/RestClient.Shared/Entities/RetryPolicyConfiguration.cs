@@ -18,8 +18,7 @@ namespace RestClient.Shared.Entities
         public double FailureThreshold { get; set; }
         public int BreakDurationSeconds { get; set; }
         public int SamplingDurationSeconds { get; set; }
-        public bool ResetCountOnSuccess { get; set; }
-        public int TimeoutForHalfOpenSeconds { get; set; }
+        
         public int[] OpenCircuitForHttpCodes { get; set; }
         public string[] OpenCircuitForExceptions { get; set; }
         public JitterStrategy JitterStrategy { get; set; }
