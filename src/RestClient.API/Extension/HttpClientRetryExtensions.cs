@@ -11,7 +11,6 @@ namespace RestClient.API.Extension
             var serviceProvider = services.BuildServiceProvider();
             var configuration = serviceProvider.GetRequiredService<IConfiguration>();
             var systemConfig = configuration.GetSection(system).Get<SystemRetryConfiguration>();
-
             RetryPolicyConfiguration retryConfig = systemConfig?.RetryPolicy;
             // If no retry configuration is found, use the default retry policy
             if (retryConfig == null)
@@ -71,29 +70,28 @@ namespace RestClient.API.Extension
             var jitterStrategy = faultTolerancePolicy.JitterStrategy;
 
             var circuitBreaker = Policy.Handle<HttpRequestException>()
-                     .OrResult<HttpResponseMessage>(response => !response.IsSuccessStatusCode)
+                     .OrResult<HttpResponseMessage>(response => faultTolerancePolicy.OpenCircuitForHttpCodes?.Contains((int)response.StatusCode) ?? false)
                      .Or<Exception>(ex => faultTolerancePolicy.OpenCircuitForExceptions?.Contains(ex.GetType().FullName) ?? false)
                      .AdvancedCircuitBreakerAsync(
-                         failureThreshold: failureThreshold,
-                         samplingDuration: TimeSpan.FromSeconds(faultTolerancePolicy.SamplingDurationSeconds),
-                         minimumThroughput: failureThreshold / 2, // Adjust as needed
-                         durationOfBreak: TimeSpan.FromSeconds(faultTolerancePolicy.BreakDurationSeconds),
-                         onBreak: (result, duration) =>
-                         {
-                             // Your logic to handle the circuit being open
-                             logger.LogWarning($"Circuit Breaker Opened for {duration.TotalSeconds} seconds. Exception: {result?.Exception?.Message}");
-                         },
-                         onReset: () =>
-                         {
-                             // Your logic when the circuit resets
-                             logger.LogInformation("Circuit Breaker Reset");
-                         },
-                         onHalfOpen: () =>
-                         {
-                             // Your logic when the circuit transitions to half-open state
-                             logger.LogInformation("Circuit Breaker Half-Open");
-                         }
-                     );
+                        failureThreshold,
+                        TimeSpan.FromSeconds(faultTolerancePolicy.SamplingDurationSeconds),
+                        5,
+                        TimeSpan.FromSeconds(faultTolerancePolicy.BreakDurationSeconds)
+                     , onBreak: (result, duration) =>
+                     {
+                         // Your logic to handle the circuit being open
+                         logger.LogWarning($"Circuit Breaker Opened for {duration.TotalSeconds} seconds. Exception: {result?.Exception?.Message}");
+                     },
+                     onReset: () =>
+                     {
+                         // Your logic when the circuit resets
+                         logger.LogInformation("Circuit Breaker Reset");
+                     },
+                      onHalfOpen: () =>
+                      {
+                          // Your logic when the circuit transitions to half-open state
+                          logger.LogInformation("Circuit Breaker Half-Open");
+                      });
 
             return circuitBreaker;
         }
@@ -102,7 +100,7 @@ namespace RestClient.API.Extension
         private static TimeSpan CalculateRetryDelay(int exponentialBase, int retryAttempt, FaultTolerancePolicy faultTolerancePolicy)
         {
             var baseDelay = Math.Pow(exponentialBase, retryAttempt);
-            var delayWithJitter = GetJitter(baseDelay,faultTolerancePolicy.JitterStrategy) + TimeSpan.FromSeconds(baseDelay);
+            var delayWithJitter = GetJitter(baseDelay, faultTolerancePolicy.JitterStrategy) + TimeSpan.FromSeconds(baseDelay);
             return delayWithJitter;
         }
 

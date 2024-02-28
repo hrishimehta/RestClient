@@ -15,7 +15,7 @@ namespace RestClient.Shared.Entities
     public class FaultTolerancePolicy
     {
         public bool Enabled { get; set; }
-        public int FailureThreshold { get; set; }
+        public double FailureThreshold { get; set; }
         public int BreakDurationSeconds { get; set; }
         public int SamplingDurationSeconds { get; set; }
         public bool ResetCountOnSuccess { get; set; }

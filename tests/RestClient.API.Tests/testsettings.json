@@ -20,7 +20,7 @@
       "OpenCircuitForExceptions": [ "System.Net.Http.HttpRequestException" ],
       "JitterStrategy": {
         "Enabled": true,
-        "Percentage": 10        
+        "Percentage": 10
       }
     }
   },
@@ -30,13 +30,13 @@
       "MaxRetries": 3,
       "RetryType": "Exponential",
       "BackoffExponentialBase": 2,
-      "FaultTolerancePolicy": {       
+      "FaultTolerancePolicy": {
         "FailureThreshold": 0.5,
         "BreakDurationSeconds": 30,
         "SamplingDurationSeconds": 60,
         "ResetCountOnSuccess": true,
         "TimeoutForHalfOpenSeconds": 10,
-        "OpenCircuitForHttpCodes": [ 404,500, 503 ],
+        "OpenCircuitForHttpCodes": [ 500, 503 ],
         "OpenCircuitForExceptions": [],
         "JitterStrategy": {
           "Enabled": true,
@@ -65,6 +65,9 @@
         }
       }
     }
+  },
+  "DefaultService": {
+    "BaseUrl": "https://www/testurl.com"
   },
   "AllowedHosts": "*"
 }
