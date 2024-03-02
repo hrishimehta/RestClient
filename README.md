@@ -53,8 +53,7 @@ The retry policy is configured in your app settings JSON file under the system n
     "BaseUrl": "https://system1.example.com",
     "RetryPolicy": {
       "MaxRetries": 3,
-      "RetryType": "Exponential",
-      "BackoffExponentialBase": 2
+      "RetryType": "Exponential"
     }
   }
 }
@@ -66,7 +65,6 @@ Suppose your system encounters a transient failure during an HTTP request to [ht
 
 - **MaxRetries**: 3 (Maximum of 3 retry attempts)
 - **RetryType**: "Exponential" (Using exponential retry strategy)
-- **BackoffExponentialBase**: 2 (Base for exponential backoff calculation)
 
 ### Retry Attempts:
 
@@ -132,8 +130,7 @@ The circuit breaker policy is configured under the `RetryPolicy` section for eac
         "OpenCircuitForExceptions": ["System.Net.Http.HttpRequestException"],
         "JitterStrategy": {
           "Enabled": true,
-          "Percentage": 10,
-          "MaxMilliseconds": 5000
+          "Percentage": 10
         }
       }
     }
@@ -170,8 +167,6 @@ The `JitterStrategy` configuration allows introducing jitter in retry intervals 
 
 - **Percentage**: The `Percentage` property represents the percentage of jitter to apply. For example, if set to `10`, the jitter will be within 10% of the original wait time.
 
-- **MaxMilliseconds**: The `MaxMilliseconds` property specifies the maximum milliseconds for jitter. If set to `5000`, the maximum added jitter will be 5000 milliseconds.
-
 ### Example Scenario
 
 Suppose your system encounters transient failures during HTTP requests to [https://system3.example.com](https://system3.example.com). With the provided configuration:
@@ -184,7 +179,6 @@ Suppose your system encounters transient failures during HTTP requests to [https
 - **JitterStrategy**:
   - **Enabled**: `true` (Jitter is enabled)
   - **Percentage**: `10` (10% jitter applied)
-  - **MaxMilliseconds**: `5000` (Maximum 5000 milliseconds for jitter)
 
 Adjust the parameters based on your specific requirements and scenarios.
 
@@ -203,7 +197,6 @@ Adjust the parameters based on your specific requirements and scenarios.
   - JitterStrategy:
     - Enabled: `true`
     - Percentage: `10`
-    - MaxMilliseconds: `5000`
 
 - Both Request 1 and Request 2 wait for a predefined time with jitter before retrying.
 - Since the response is a failure, the failure count increments for both parallel requests.
@@ -283,7 +276,7 @@ I hope this provides a clear understanding. Feel free to adjust the parameters o
 
 2. **Time-Based Circuit Reset:**
    - Implement a time-based circuit reset mechanism to periodically attempt to close the circuit breaker and allow traffic.
-3. **Half-Open State:**
+~~3. **Half-Open State:**~~
    - Introduce a half-open state to test if the system has recovered before fully closing the circuit.
 4. **Fallback Mechanism:**
    - Provide a fallback mechanism to handle requests when the circuit is open, preventing total service unavailability.
