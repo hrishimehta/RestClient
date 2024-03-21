@@ -5,39 +5,38 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{197EFE30-5031-4597-AC7E-0C55D0209747}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestClient.API", "src\RestClient.API\RestClient.API.csproj", "{0B2B9E47-7B72-437E-A061-274DCBF8588E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RestClient.API", "src\RestClient.API\RestClient.API.csproj", "{0B2B9E47-7B72-437E-A061-274DCBF8588E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestClient.Domain", "src\RestClient.Domain\RestClient.Domain.csproj", "{A3B20388-A4B4-4AA6-B0D2-3721A8569F77}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RestClient.Domain", "src\RestClient.Domain\RestClient.Domain.csproj", "{A3B20388-A4B4-4AA6-B0D2-3721A8569F77}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestClient.Infrastructure", "src\RestClient.Infrastructure\RestClient.Infrastructure.csproj", "{52D5D46A-3DE6-4E03-B60A-FFFF8464BC47}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RestClient.Infrastructure", "src\RestClient.Infrastructure\RestClient.Infrastructure.csproj", "{52D5D46A-3DE6-4E03-B60A-FFFF8464BC47}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestClient.Shared", "src\RestClient.Shared\RestClient.Shared.csproj", "{C2B9FF12-8E2A-4A0D-B1C8-AD0948144A05}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RestClient.Shared", "src\RestClient.Shared\RestClient.Shared.csproj", "{C2B9FF12-8E2A-4A0D-B1C8-AD0948144A05}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestClient.Client", "src\RestClient.Client\RestClient.Client.csproj", "{EEABAA36-3A1C-461F-97C8-2DE2735D3BA2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RestClient.Client", "src\RestClient.Client\RestClient.Client.csproj", "{EEABAA36-3A1C-461F-97C8-2DE2735D3BA2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestClient.Mongo", "src\RestClient.Mongo\RestClient.Mongo.csproj", "{2AA21EE2-DE48-47DF-B658-7BA2472579E8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RestClient.Mongo", "src\RestClient.Mongo\RestClient.Mongo.csproj", "{2AA21EE2-DE48-47DF-B658-7BA2472579E8}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{AB6654F4-29AE-43FF-BD2A-5C8E9CB6853B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestClient.API.Tests", "tests\RestClient.API.Tests\RestClient.API.Tests.csproj", "{77C27027-49E4-4D69-84F6-E01AE699419B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RestClient.API.Tests", "tests\RestClient.API.Tests\RestClient.API.Tests.csproj", "{77C27027-49E4-4D69-84F6-E01AE699419B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestClient.Domain.Tests", "tests\RestClient.Domain.Tests\RestClient.Domain.Tests.csproj", "{A923D00E-23BF-44D4-AA19-D0C5D1264403}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RestClient.Domain.Tests", "tests\RestClient.Domain.Tests\RestClient.Domain.Tests.csproj", "{A923D00E-23BF-44D4-AA19-D0C5D1264403}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestClient.Infrastructure.Tests", "tests\RestClient.Infrastructure.Tests\RestClient.Infrastructure.Tests.csproj", "{3FE7D034-4DEF-4361-8129-72E298905C76}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RestClient.Infrastructure.Tests", "tests\RestClient.Infrastructure.Tests\RestClient.Infrastructure.Tests.csproj", "{3FE7D034-4DEF-4361-8129-72E298905C76}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestClient.Shared.Tests", "tests\RestClient.Shared.Tests\RestClient.Shared.Tests.csproj", "{1517705B-C452-4612-BFC3-549A9702E93A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RestClient.Shared.Tests", "tests\RestClient.Shared.Tests\RestClient.Shared.Tests.csproj", "{1517705B-C452-4612-BFC3-549A9702E93A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestClient.Client.Tests", "tests\RestClient.Client.Tests\RestClient.Client.Tests.csproj", "{504A383C-F043-4136-BB4B-7E8CE5FD8D4D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RestClient.Client.Tests", "tests\RestClient.Client.Tests\RestClient.Client.Tests.csproj", "{504A383C-F043-4136-BB4B-7E8CE5FD8D4D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestClient.Mongo.Tests", "tests\RestClient.Mongo.Tests\RestClient.Mongo.Tests.csproj", "{D52E10C3-9397-49C1-97C8-8B11E3099208}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RestClient.Mongo.Tests", "tests\RestClient.Mongo.Tests\RestClient.Mongo.Tests.csproj", "{D52E10C3-9397-49C1-97C8-8B11E3099208}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestClient.MSAPI", "src\RestClient.MSAPI\RestClient.MSAPI\RestClient.MSAPI.csproj", "{B696F51B-E6B1-4519-A4B1-814107AFC65A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{0B2B9E47-7B72-437E-A061-274DCBF8588E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
@@ -88,6 +87,13 @@ Global
 		{D52E10C3-9397-49C1-97C8-8B11E3099208}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D52E10C3-9397-49C1-97C8-8B11E3099208}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D52E10C3-9397-49C1-97C8-8B11E3099208}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B696F51B-E6B1-4519-A4B1-814107AFC65A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B696F51B-E6B1-4519-A4B1-814107AFC65A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B696F51B-E6B1-4519-A4B1-814107AFC65A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B696F51B-E6B1-4519-A4B1-814107AFC65A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{0B2B9E47-7B72-437E-A061-274DCBF8588E} = {197EFE30-5031-4597-AC7E-0C55D0209747}
@@ -102,5 +108,9 @@ Global
 		{1517705B-C452-4612-BFC3-549A9702E93A} = {AB6654F4-29AE-43FF-BD2A-5C8E9CB6853B}
 		{504A383C-F043-4136-BB4B-7E8CE5FD8D4D} = {AB6654F4-29AE-43FF-BD2A-5C8E9CB6853B}
 		{D52E10C3-9397-49C1-97C8-8B11E3099208} = {AB6654F4-29AE-43FF-BD2A-5C8E9CB6853B}
+		{B696F51B-E6B1-4519-A4B1-814107AFC65A} = {197EFE30-5031-4597-AC7E-0C55D0209747}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {28F5C5D2-300D-42CB-AB8E-DD7030E4C2C4}
 	EndGlobalSection
 EndGlobal

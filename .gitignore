@@ -28,3 +28,5 @@
 /tests/RestClient.Mongo.Tests/bin/Debug/net6.0
 /tests/RestClient.Shared.Tests/obj
 /tests/RestClient.Shared.Tests/bin/Debug/net6.0
+/src/RestClient.MSAPI/RestClient.MSAPI/obj
+/src/RestClient.MSAPI/RestClient.MSAPI/bin/Debug/net6.0
