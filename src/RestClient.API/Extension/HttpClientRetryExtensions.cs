@@ -28,7 +28,7 @@ namespace RestClient.API.Extension
                 : GetConstantRetryPolicy(retryConfig.MaxRetries, retryConfig.RetryInterval, retryConfig.FaultTolerancePolicy, logger));
         }
 
-        private static IAsyncPolicy<HttpResponseMessage> GetExponentialRetryPolicy(int maxRetries, int exponentialBase, FaultTolerancePolicy faultTolerancePolicy, ILogger logger)
+        public static IAsyncPolicy<HttpResponseMessage> GetExponentialRetryPolicy(int maxRetries, int exponentialBase, FaultTolerancePolicy faultTolerancePolicy, ILogger logger)
         {
             return HttpPolicyExtensions
                 .HandleTransientHttpError()
@@ -41,7 +41,7 @@ namespace RestClient.API.Extension
                 .WrapAsync(ApplyCircuitBreaker(faultTolerancePolicy, logger));
         }
 
-        private static IAsyncPolicy<HttpResponseMessage> GetConstantRetryPolicy(int maxRetries, int retryInterval, FaultTolerancePolicy faultTolerancePolicy, ILogger logger)
+        public static IAsyncPolicy<HttpResponseMessage> GetConstantRetryPolicy(int maxRetries, int retryInterval, FaultTolerancePolicy faultTolerancePolicy, ILogger logger)
         {
             return HttpPolicyExtensions
                 .HandleTransientHttpError()
@@ -56,7 +56,7 @@ namespace RestClient.API.Extension
 
 
 
-        private static IAsyncPolicy<HttpResponseMessage> ApplyCircuitBreaker(FaultTolerancePolicy faultTolerancePolicy, ILogger logger)
+        public static IAsyncPolicy<HttpResponseMessage> ApplyCircuitBreaker(FaultTolerancePolicy faultTolerancePolicy, ILogger logger)
         {
             if (faultTolerancePolicy == null || !faultTolerancePolicy.Enabled)
             {
@@ -97,16 +97,16 @@ namespace RestClient.API.Extension
         }
 
 
-        private static TimeSpan CalculateRetryDelay(int exponentialBase, int retryAttempt, FaultTolerancePolicy faultTolerancePolicy)
+        public static TimeSpan CalculateRetryDelay(int exponentialBase, int retryAttempt, FaultTolerancePolicy faultTolerancePolicy)
         {
             var baseDelay = Math.Pow(exponentialBase, retryAttempt);
             var delayWithJitter = GetJitter(baseDelay, faultTolerancePolicy.JitterStrategy) + TimeSpan.FromSeconds(baseDelay);
             return delayWithJitter;
         }
 
-        private static TimeSpan GetJitter(double baseValue, JitterStrategy jitterStrategy)
+        public static TimeSpan GetJitter(double baseValue, JitterStrategy jitterStrategy)
         {
-            if (jitterStrategy.Enabled)
+            if (jitterStrategy!=null && jitterStrategy.Enabled)
             {
                 var random = new Random();
 
