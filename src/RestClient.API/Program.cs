@@ -6,9 +6,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 var logger = builder.Services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
 builder.Services.AddScoped<ChuckNorrisService>();
+
+builder.Services.AddHttpClientWithRetryPolicy("System3", logger);
 builder.Services.AddHttpClientWithRetryPolicy("ChuckNorrisService", logger);
 builder.Services.AddHttpClientWithRetryPolicy("System2", logger);
-builder.Services.AddHttpClientWithRetryPolicy("System3", logger);
+
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
