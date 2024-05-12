@@ -30,3 +30,5 @@
 /tests/RestClient.Shared.Tests/bin/Debug/net6.0
 /src/RestClient.MSAPI/RestClient.MSAPI/obj
 /src/RestClient.MSAPI/RestClient.MSAPI/bin/Debug/net6.0
+/src/RestClient.NewAPI/RestClient.NewAPI/obj
+/src/RestClient.NewAPI/RestClient.NewAPI/bin/Debug/net6.0
