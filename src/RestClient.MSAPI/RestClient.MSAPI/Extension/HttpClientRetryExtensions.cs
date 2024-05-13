@@ -67,7 +67,6 @@ namespace RestClient.API.Extension
             var failureThreshold = faultTolerancePolicy.FailureThreshold;
             var samplingDuration = TimeSpan.FromSeconds(faultTolerancePolicy.SamplingDurationSeconds);
             var breakDuration = TimeSpan.FromSeconds(faultTolerancePolicy.BreakDurationSeconds);
-            var jitterStrategy = faultTolerancePolicy.JitterStrategy;
 
             var circuitBreaker = Policy.Handle<HttpRequestException>()
                      .OrResult<HttpResponseMessage>(response => faultTolerancePolicy.OpenCircuitForHttpCodes?.Contains((int)response.StatusCode) ?? false)
@@ -95,32 +94,5 @@ namespace RestClient.API.Extension
 
             return circuitBreaker;
         }
-
-
-        private static TimeSpan CalculateRetryDelay(int exponentialBase, int retryAttempt, FaultTolerancePolicy faultTolerancePolicy)
-        {
-            var baseDelay = Math.Pow(exponentialBase, retryAttempt);
-            var delayWithJitter = GetJitter(baseDelay, faultTolerancePolicy.JitterStrategy) + TimeSpan.FromSeconds(baseDelay);
-            return delayWithJitter;
-        }
-
-        private static TimeSpan GetJitter(double baseValue, JitterStrategy jitterStrategy)
-        {
-            if (jitterStrategy.Enabled)
-            {
-                var random = new Random();
-
-                // Calculate the maximum jitter based on the specified percentage of baseValue
-                var jitter = (int)(jitterStrategy.Percentage / 100.0 * baseValue);
-
-                // Custom jitter implementation using a random number between -jitter and jitter
-                var randomNumber = random.Next(-jitter, jitter + 1);
-
-                return TimeSpan.FromMilliseconds(randomNumber);
-            }
-
-            return TimeSpan.Zero;
-        }
-
     }
 }
