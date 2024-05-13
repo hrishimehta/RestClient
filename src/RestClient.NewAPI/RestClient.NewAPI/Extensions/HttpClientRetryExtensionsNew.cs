@@ -1,13 +1,16 @@
-﻿using Microsoft.Extensions.Http.Resilience;
+﻿using System;
+using System.Linq;
+using System.Net;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Http.Resilience;
 using Polly;
 using Polly.CircuitBreaker;
-using Polly.Retry;
-using Polly.Simmy;
-using Polly.Simmy.Behavior;
-using Polly.Simmy.Fault;
-using Polly.Simmy.Latency;
 using RestClient.Shared.Entities;
-using System.Net;
+using Polly.Retry;
+using MongoDB.Driver.Core.Operations;
 
 namespace RestClient.API.Extension
 {
@@ -18,7 +21,7 @@ namespace RestClient.API.Extension
             var serviceProvider = services.BuildServiceProvider();
             var configuration = serviceProvider.GetRequiredService<IConfiguration>();
             var systemConfig = configuration.GetSection(system).Get<SystemRetryConfiguration>();
-            RetryPolicyConfiguration retryConfig = systemConfig?.RetryPolicy;
+            RetryPolicyConfiguration? retryConfig = systemConfig?.RetryPolicy;
             // If no retry configuration is found, use the default retry policy
             if (retryConfig == null)
             {
@@ -26,58 +29,67 @@ namespace RestClient.API.Extension
             }
 
 
-            var delayBackoffType = (DelayBackoffType)Enum.Parse(typeof(DelayBackoffType), retryConfig.Retry.RetryType, true);
-            var useJitter = retryConfig.Retry.UseJitter;
+            var delayBackoffType = Enum.Parse<DelayBackoffType>(retryConfig?.Retry.RetryType ?? DelayBackoffType.Constant.ToString(), true);
+            var useJitter = retryConfig?.Retry.UseJitter ?? false;
 
-            var faultTolerancePolicy = retryConfig.FaultTolerancePolicy;
-            var failureThreshold = faultTolerancePolicy.FailureThreshold;
-            var samplingDuration = TimeSpan.FromSeconds(faultTolerancePolicy.SamplingDurationSeconds);
-            var breakDuration = TimeSpan.FromSeconds(faultTolerancePolicy.BreakDurationSeconds);
-            var minThroughPut = faultTolerancePolicy.MinThroughPut;
+            var faultTolerancePolicy = retryConfig?.FaultTolerancePolicy;
+            var failureThreshold = faultTolerancePolicy?.FailureThreshold ?? 0;
+            var samplingDuration = TimeSpan.FromSeconds(faultTolerancePolicy?.SamplingDurationSeconds ?? 0);
+            var minThroughPut = faultTolerancePolicy?.MinThroughPut ?? 0;
 
             services.AddHttpClient(system)
                        .AddResilienceHandler(system, builder =>
                        {
-                           Func<CircuitBreakerPredicateArguments<HttpResponseMessage>, ValueTask<bool>> shouldHandle = async args =>
+                           Func<CircuitBreakerPredicateArguments<HttpResponseMessage>, ValueTask<bool>> shouldHandle =  args =>
                            {
+                               if (args.Outcome.Result == null)
+                               {
+                                   return new ValueTask<bool>(false);
+                               }
+
                                var isCircuitBreakerSettingsProvided = faultTolerancePolicy != null && faultTolerancePolicy.OpenCircuitForHttpCodes != null && faultTolerancePolicy.OpenCircuitForExceptions != null;
 
                                // Check for non-successful status code
                                if (!isCircuitBreakerSettingsProvided && !args.Outcome.Result.IsSuccessStatusCode)
-                                   return true;
+                                   return new ValueTask<bool>(true);
 
-                               if (faultTolerancePolicy.OpenCircuitForHttpCodes != null
+                               if (faultTolerancePolicy?.OpenCircuitForHttpCodes != null
                                            && faultTolerancePolicy.OpenCircuitForHttpCodes.Contains((int)args.Outcome.Result.StatusCode))
-                                   return true;
+                                   return new ValueTask<bool>(true);
 
                                // Check for HttpRequestException
-                               if (faultTolerancePolicy.OpenCircuitForExceptions != null
-                                        && faultTolerancePolicy.OpenCircuitForExceptions.Contains(args.Outcome.Exception.GetType().FullName))
-                                   return true;
+                               if (faultTolerancePolicy?.OpenCircuitForExceptions != null
+                                        && args.Outcome.Exception != null && faultTolerancePolicy.OpenCircuitForExceptions.Contains(args.Outcome.Exception.GetType().FullName ?? string.Empty))
+                                   return new ValueTask<bool>(true);
 
                                // Default: do not handle
-                               return false;
+                               return new ValueTask<bool>(false);
                            };
 
-                           Func<RetryPredicateArguments<HttpResponseMessage>, ValueTask<bool>> shouldHandleForRetry = async args =>
+                           Func<RetryPredicateArguments<HttpResponseMessage>, ValueTask<bool>> shouldHandleForRetry = args =>
                            {
-                               var isRetrySettingsProvided = retryConfig.Retry != null && retryConfig.Retry.RetryForHttpCodes != null && retryConfig.Retry.RetryForExceptions != null;
+                               if (args.Outcome.Result == null)
+                               {
+                                   return new ValueTask<bool>(false);
+                               }
+
+                               var isRetrySettingsProvided = retryConfig?.Retry != null && retryConfig.Retry.RetryForHttpCodes != null && retryConfig.Retry.RetryForExceptions != null;
 
                                // if retry setting nor provided and response is not success status code than execute retry polciy
                                if (!isRetrySettingsProvided && !args.Outcome.Result.IsSuccessStatusCode)
-                                   return true;
+                                   return new ValueTask<bool>(true);
 
-                               if (retryConfig.Retry.RetryForHttpCodes != null
+                               if (retryConfig?.Retry.RetryForHttpCodes != null
                                            && retryConfig.Retry.RetryForHttpCodes.Contains((int)args.Outcome.Result.StatusCode))
-                                   return true;
+                                   return new ValueTask<bool>(true);
 
                                // Check for HttpRequestException
-                               if (retryConfig.Retry.RetryForExceptions != null
-                                        && retryConfig.Retry.RetryForExceptions.Contains(args.Outcome.Exception.GetType().FullName))
-                                   return true;
+                               if (retryConfig?.Retry.RetryForExceptions != null
+                                        && args.Outcome.Exception != null && retryConfig.Retry.RetryForExceptions.Contains(args.Outcome.Exception.GetType().FullName ?? string.Empty))
+                                   return new ValueTask<bool>(true);
 
                                // Default: do not handle
-                               return false;
+                               return new ValueTask<bool>(false);
                            };
 
 
@@ -86,7 +98,7 @@ namespace RestClient.API.Extension
                            {
                                // Customize and configure the retry logic.
                                BackoffType = delayBackoffType,
-                               MaxRetryAttempts = retryConfig.Retry.MaxRetries,
+                               MaxRetryAttempts = retryConfig?.Retry.MaxRetries ?? 0,
                                UseJitter = useJitter,
                                ShouldHandle = shouldHandleForRetry
                            });
@@ -102,7 +114,7 @@ namespace RestClient.API.Extension
                            });
 
                            // See: https://www.pollydocs.org/strategies/timeout.html
-                           builder.AddTimeout(TimeSpan.FromSeconds(retryConfig.Timeout.TimeoutDuration));
+                           builder.AddTimeout(TimeSpan.FromSeconds(retryConfig?.Timeout.TimeoutDuration ?? 0));
 
                            //builder.AddChaosLatency(new ChaosLatencyStrategyOptions
                            //{

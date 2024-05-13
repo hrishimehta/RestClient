@@ -14,7 +14,7 @@ namespace RestClient.Shared.Entities
     public class RetryPolicy
     {
         public int MaxRetries { get; set; }
-        public string RetryType { get; set; } = String.Empty;
+        public string RetryType { get; set; } = "Constant";
         public int RetryInterval { get; set; }
 
         public List<int> RetryForHttpCodes { get; set; } = new();
