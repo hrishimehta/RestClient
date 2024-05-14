@@ -7,9 +7,10 @@ var builder = WebApplication.CreateBuilder(args);
 var logger = builder.Services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
 builder.Services.AddScoped<ChuckNorrisService>();
 
-builder.Services.AddHttpClientWithRetryPolicy("System3", logger);
-builder.Services.AddHttpClientWithRetryPolicy("ChuckNorrisService", logger);
-builder.Services.AddHttpClientWithRetryPolicy("System2", logger);
+builder.Services.AddHttpClientWithRetryPolicy(logger);
+//builder.Services.AddHttpClientWithRetryPolicy("System3", logger);
+//builder.Services.AddHttpClientWithRetryPolicy("ChuckNorrisService", logger);
+//builder.Services.AddHttpClientWithRetryPolicy("System2", logger);
 
 
 builder.Services.AddControllers();

@@ -37,7 +37,7 @@ namespace RestClient.Shared.Entities
     }
     public class Timeout
     {
-        public int TimeoutDuration { get; set; }
+        public int TimeoutDuration { get; set; } = 100;
     }
 
 }
