@@ -1,5 +1,7 @@
-﻿using Polly;
-using Polly.Extensions.Http;
+﻿using Microsoft.Extensions.Http.Resilience;
+using Polly;
+using Polly.CircuitBreaker;
+using Polly.Retry;
 using RestClient.Shared.Entities;
 
 namespace RestClient.API.Extension
@@ -11,7 +13,8 @@ namespace RestClient.API.Extension
             var serviceProvider = services.BuildServiceProvider();
             var configuration = serviceProvider.GetRequiredService<IConfiguration>();
             var systemConfig = configuration.GetSection(system).Get<SystemRetryConfiguration>();
-            RetryPolicyConfiguration retryConfig = systemConfig?.RetryPolicy;
+            RetryPolicyConfiguration? retryConfig = systemConfig?.RetryPolicy;
+
             // If no retry configuration is found, use the default retry policy
             if (retryConfig == null)
             {
@@ -19,107 +22,117 @@ namespace RestClient.API.Extension
             }
 
 
-            services.AddHttpClient(system, client =>
-            {
-                client.BaseAddress = new Uri(systemConfig.BaseUrl);
-            })
-            .AddPolicyHandler(retryConfig.RetryType == "Exponential"
-                ? GetExponentialRetryPolicy(retryConfig.MaxRetries, retryConfig.BackoffExponentialBase ?? 2, retryConfig.FaultTolerancePolicy, logger)
-                : GetConstantRetryPolicy(retryConfig.MaxRetries, retryConfig.RetryInterval, retryConfig.FaultTolerancePolicy, logger));
-        }
+            var delayBackoffType = Enum.Parse<DelayBackoffType>(retryConfig?.Retry.RetryType ?? DelayBackoffType.Constant.ToString(), true);
+            var useJitter = retryConfig?.Retry.UseJitter ?? false;
 
-        public static IAsyncPolicy<HttpResponseMessage> GetExponentialRetryPolicy(int maxRetries, int exponentialBase, FaultTolerancePolicy faultTolerancePolicy, ILogger logger)
-        {
-            return HttpPolicyExtensions
-                .HandleTransientHttpError()
-                .OrResult(msg => !msg.IsSuccessStatusCode)
-                .WaitAndRetryAsync(maxRetries, retryCount => CalculateRetryDelay(exponentialBase, retryCount, faultTolerancePolicy),
-                    (exception, timeSpan, retryCount, context) =>
-                    {
-                        logger.LogWarning($"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} - Exponential Retry #{retryCount} after {timeSpan.TotalSeconds} seconds. Exception: {exception?.Exception?.Message}");
-                    })
-                .WrapAsync(ApplyCircuitBreaker(faultTolerancePolicy, logger));
-        }
+            var faultTolerancePolicy = retryConfig?.FaultTolerancePolicy;
+            var failureThreshold = faultTolerancePolicy?.FailureThreshold ?? 0;
+            var samplingDuration = TimeSpan.FromSeconds(faultTolerancePolicy?.SamplingDurationSeconds ?? 0);
+            var breakDurationSeconds = TimeSpan.FromSeconds(faultTolerancePolicy?.BreakDurationSeconds ?? 0);
+            var minThroughPut = faultTolerancePolicy?.MinThroughPut ?? 0;
 
-        public static IAsyncPolicy<HttpResponseMessage> GetConstantRetryPolicy(int maxRetries, int retryInterval, FaultTolerancePolicy faultTolerancePolicy, ILogger logger)
-        {
-            return HttpPolicyExtensions
-                .HandleTransientHttpError()
-                .OrResult(msg => !msg.IsSuccessStatusCode)
-                .WaitAndRetryAsync(maxRetries, retryCount => TimeSpan.FromSeconds(retryInterval),
-                    (exception, timeSpan, retryCount, context) =>
-                    {
-                        logger.LogWarning($"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} - Constant Retry #{retryCount} after {timeSpan.TotalSeconds} seconds. Exception: {exception?.Exception?.Message}");
-                    })
-                .WrapAsync(ApplyCircuitBreaker(faultTolerancePolicy, logger));
-        }
+            services.AddHttpClient(system)
+                       .AddResilienceHandler(system, builder =>
+                       {
+                           Func<CircuitBreakerPredicateArguments<HttpResponseMessage>, ValueTask<bool>> shouldHandle = args =>
+                           {
+                               if (args.Outcome.Result == null)
+                               {
+                                   return new ValueTask<bool>(false);
+                               }
 
+                               var isCircuitBreakerSettingsProvided = faultTolerancePolicy != null && faultTolerancePolicy.OpenCircuitForHttpCodes != null && faultTolerancePolicy.OpenCircuitForExceptions != null;
 
+                               // Check for non-successful status code
+                               if (!isCircuitBreakerSettingsProvided && !args.Outcome.Result.IsSuccessStatusCode)
+                                   return new ValueTask<bool>(true);
 
-        public static IAsyncPolicy<HttpResponseMessage> ApplyCircuitBreaker(FaultTolerancePolicy faultTolerancePolicy, ILogger logger)
-        {
-            if (faultTolerancePolicy == null || !faultTolerancePolicy.Enabled)
-            {
-                // If faultTolerancePolicy is not provided or explicitly disabled, return a NoOp policy
-                return Policy.NoOpAsync<HttpResponseMessage>();
-            }
+                               if (faultTolerancePolicy?.OpenCircuitForHttpCodes != null
+                                           && faultTolerancePolicy.OpenCircuitForHttpCodes.Contains((int)args.Outcome.Result.StatusCode))
+                                   return new ValueTask<bool>(true);
 
-            var failureThreshold = faultTolerancePolicy.FailureThreshold;
-            var samplingDuration = TimeSpan.FromSeconds(faultTolerancePolicy.SamplingDurationSeconds);
-            var breakDuration = TimeSpan.FromSeconds(faultTolerancePolicy.BreakDurationSeconds);
-            var jitterStrategy = faultTolerancePolicy.JitterStrategy;
+                               // Check for HttpRequestException
+                               if (faultTolerancePolicy?.OpenCircuitForExceptions != null
+                                        && args.Outcome.Exception != null && faultTolerancePolicy.OpenCircuitForExceptions.Contains(args.Outcome.Exception.GetType().FullName ?? string.Empty))
+                                   return new ValueTask<bool>(true);
 
-            var circuitBreaker = Policy.Handle<HttpRequestException>()
-                     .OrResult<HttpResponseMessage>(response => faultTolerancePolicy.OpenCircuitForHttpCodes?.Contains((int)response.StatusCode) ?? false)
-                     .Or<Exception>(ex => faultTolerancePolicy.OpenCircuitForExceptions?.Contains(ex.GetType().FullName) ?? false)
-                     .AdvancedCircuitBreakerAsync(
-                        failureThreshold,
-                        TimeSpan.FromSeconds(faultTolerancePolicy.SamplingDurationSeconds),
-                        5,
-                        TimeSpan.FromSeconds(faultTolerancePolicy.BreakDurationSeconds)
-                     , onBreak: (result, duration) =>
-                     {
-                         // Your logic to handle the circuit being open
-                         logger.LogWarning($"Circuit Breaker Opened for {duration.TotalSeconds} seconds. Exception: {result?.Exception?.Message}");
-                     },
-                     onReset: () =>
-                     {
-                         // Your logic when the circuit resets
-                         logger.LogInformation("Circuit Breaker Reset");
-                     },
-                      onHalfOpen: () =>
-                      {
-                          // Your logic when the circuit transitions to half-open state
-                          logger.LogInformation("Circuit Breaker Half-Open");
-                      });
+                               // Default: do not handle
+                               return new ValueTask<bool>(false);
+                           };
 
-            return circuitBreaker;
-        }
+                           Func<RetryPredicateArguments<HttpResponseMessage>, ValueTask<bool>> shouldHandleForRetry = args =>
+                           {
+                               if (args.Outcome.Result == null)
+                               {
+                                   return new ValueTask<bool>(false);
+                               }
+
+                               var isRetrySettingsProvided = retryConfig?.Retry != null && retryConfig.Retry.RetryForHttpCodes != null && retryConfig.Retry.RetryForExceptions != null;
+
+                               // if retry setting nor provided and response is not success status code than execute retry polciy
+                               if (!isRetrySettingsProvided && !args.Outcome.Result.IsSuccessStatusCode)
+                                   return new ValueTask<bool>(true);
+
+                               if (retryConfig?.Retry.RetryForHttpCodes != null
+                                           && retryConfig.Retry.RetryForHttpCodes.Contains((int)args.Outcome.Result.StatusCode))
+                                   return new ValueTask<bool>(true);
+
+                               // Check for HttpRequestException
+                               if (retryConfig?.Retry.RetryForExceptions != null
+                                        && args.Outcome.Exception != null && retryConfig.Retry.RetryForExceptions.Contains(args.Outcome.Exception.GetType().FullName ?? string.Empty))
+                                   return new ValueTask<bool>(true);
+
+                               // Default: do not handle
+                               return new ValueTask<bool>(false);
+                           };
 
 
-        public static TimeSpan CalculateRetryDelay(int exponentialBase, int retryAttempt, FaultTolerancePolicy faultTolerancePolicy)
-        {
-            var baseDelay = Math.Pow(exponentialBase, retryAttempt);
-            var delayWithJitter = GetJitter(baseDelay, faultTolerancePolicy.JitterStrategy) + TimeSpan.FromSeconds(baseDelay);
-            return delayWithJitter;
-        }
+                           // See: https://www.pollydocs.org/strategies/retry.html
+                           builder.AddRetry(new HttpRetryStrategyOptions
+                           {
+                               // Customize and configure the retry logic.
+                               BackoffType = delayBackoffType,
+                               MaxRetryAttempts = retryConfig?.Retry.MaxRetries ?? 0,
+                               UseJitter = useJitter,
+                               ShouldHandle = shouldHandleForRetry,
+                               OnRetry = args =>
+                               {
 
-        public static TimeSpan GetJitter(double baseValue, JitterStrategy jitterStrategy)
-        {
-            if (jitterStrategy!=null && jitterStrategy.Enabled)
-            {
-                var random = new Random();
+                                   logger.LogWarning($"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} - Retry #{args.AttemptNumber}, Duration of attempt {args.Duration.TotalSeconds} seconds. Exception: {args.Outcome.Exception?.Message} Status: {args.Outcome.Result?.StatusCode}");
+                                   return new ValueTask();
+                               }
+                           });
 
-                // Calculate the maximum jitter based on the specified percentage of baseValue
-                var jitter = (int)(jitterStrategy.Percentage / 100.0 * baseValue);
+                           // See: https://www.pollydocs.org/strategies/circuit-breaker.html
+                           builder.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
+                           {
+                               // Customize and configure the circuit breaker logic.
+                               SamplingDuration = samplingDuration,
+                               BreakDuration = breakDurationSeconds,                               
+                               FailureRatio = failureThreshold,
+                               MinimumThroughput = minThroughPut,
+                               ShouldHandle = shouldHandle,
+                               OnOpened = args =>
+                               {
+                                   logger.LogInformation($"Circuit Opened. Break duration {args.BreakDuration}, IsManual {args.IsManual},  Exception: {args.Outcome.Exception?.Message} Status: {args.Outcome.Result?.StatusCode} ");
+                                   return new ValueTask();
+                               },
+                               OnClosed = args =>
+                               {
+                                   logger.LogInformation($"Circuit Breaker OnClosed.IsManual {args.IsManual},  Exception: {args.Outcome.Exception?.Message} Status: {args.Outcome.Result?.StatusCode} ");
+                                   return new ValueTask();
+                               },
+                               OnHalfOpened = args =>
+                               {
+                                   logger.LogInformation($"Circuit Breaker OnHalfOpened. Operation key {args.Context.OperationKey}");
+                                   return new ValueTask();
+                               },
+                           });
 
-                // Custom jitter implementation using a random number between -jitter and jitter
-                var randomNumber = random.Next(-jitter, jitter + 1);
+                           // See: https://www.pollydocs.org/strategies/timeout.html
+                           builder.AddTimeout(TimeSpan.FromSeconds(retryConfig?.Timeout.TimeoutDuration ?? 0));
 
-                return TimeSpan.FromMilliseconds(randomNumber);
-            }
-
-            return TimeSpan.Zero;
+                       });
         }
 
     }
