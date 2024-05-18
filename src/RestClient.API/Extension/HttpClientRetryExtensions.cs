@@ -15,7 +15,9 @@ namespace RestClient.API.Extension
         {
             var serviceProvider = services.BuildServiceProvider();
             var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+            var pipelineBuilder = serviceProvider.GetRequiredService<IPipelineBuilder>();
             var systemConfig = configuration.GetSection(system).Get<SystemRetryConfiguration>();
+
             RetryPolicyConfiguration? retryConfig = systemConfig?.RetryPolicy;
 
             // If no retry configuration is found, use the default retry policy
@@ -29,13 +31,13 @@ namespace RestClient.API.Extension
                        .AddResilienceHandler(system, builder =>
                        {
                            // See: https://www.pollydocs.org/strategies/retry.html
-                           builder.AddRetry(PipelineBuilder.GetHttpRetryStrategyOptions(retryConfig, logger));
+                           builder.AddRetry(pipelineBuilder.GetHttpRetryStrategyOptions(retryConfig));
 
                            // See: https://www.pollydocs.org/strategies/circuit-breaker.html
-                           builder.AddCircuitBreaker(PipelineBuilder.GetHttpCircuitBreakerStrategyOptions(retryConfig, logger));
+                           builder.AddCircuitBreaker(pipelineBuilder.GetHttpCircuitBreakerStrategyOptions(retryConfig));
 
                            // See: https://www.pollydocs.org/strategies/timeout.html
-                           builder.AddTimeout(TimeSpan.FromSeconds(retryConfig?.Timeout.TimeoutDuration ?? 0));
+                           builder.AddTimeout(TimeSpan.FromSeconds(retryConfig.Timeout));
 
                        });
         }
@@ -44,6 +46,7 @@ namespace RestClient.API.Extension
         {
             var serviceProvider = services.BuildServiceProvider();
             var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+            var pipelineBuilder = serviceProvider.GetRequiredService<IPipelineBuilder>();
             var httpClientSettings = configuration.GetSection("HttpClient").Get<List<HttpClientSettings>>();
             var retryPolicySettings = configuration.GetSection("RetryPolicySettings").Get<List<RetryPolicySettings>>();
 
@@ -67,26 +70,25 @@ namespace RestClient.API.Extension
                 }
                 else
                 {
-                    ResiliencePipeline<HttpResponseMessage> pipeline = PipelineBuilder.BuildPipeline(retryPolicy, logger);
                     services.AddHttpClient(httpClientSetting.Name)
                        .AddResilienceHandler(httpClientSetting.Name, builder =>
                        {
                            // See: https://www.pollydocs.org/strategies/retry.html
-                           builder.AddRetry(PipelineBuilder.GetHttpRetryStrategyOptions(retryPolicy, logger));
+                           builder.AddRetry(pipelineBuilder.GetHttpRetryStrategyOptions(retryPolicy));
 
                            // See: https://www.pollydocs.org/strategies/circuit-breaker.html
-                           builder.AddCircuitBreaker(PipelineBuilder.GetHttpCircuitBreakerStrategyOptions(retryPolicy, logger));
+                           builder.AddCircuitBreaker(pipelineBuilder.GetHttpCircuitBreakerStrategyOptions(retryPolicy));
 
                            // See: https://www.pollydocs.org/strategies/timeout.html
-                           builder.AddTimeout(TimeSpan.FromSeconds(retryPolicy?.Timeout.TimeoutDuration ?? 100));
+                           builder.AddTimeout(TimeSpan.FromSeconds(retryPolicy.Timeout));
 
                            if (isChaosEnabled)
                            {
-                               builder.AddChaosFault(PipelineBuilder.GetChaosFaultStrategyOptions(retryPolicy, logger));
+                               builder.AddChaosFault(pipelineBuilder.GetChaosFaultStrategyOptions(retryPolicy, logger));
 
-                               builder.AddChaosOutcome(PipelineBuilder.GetChaosOutcomeStrategyOptions(retryPolicy, logger));
+                               builder.AddChaosOutcome(pipelineBuilder.GetChaosOutcomeStrategyOptions(retryPolicy));
 
-                               builder.AddChaosLatency(PipelineBuilder.GetChaosLatencyStrategyOptions(retryPolicy, logger));
+                               builder.AddChaosLatency(pipelineBuilder.GetChaosLatencyStrategyOptions(retryPolicy));
                            }
                        });
                 }

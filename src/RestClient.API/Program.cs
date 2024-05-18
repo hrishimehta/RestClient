@@ -1,3 +1,4 @@
+using Polly;
 using RestClient.API.Extension;
 using RestClient.Infrastructure.Services;
 
@@ -5,7 +6,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 var logger = builder.Services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
+
+builder.Services.AddLogging();
 builder.Services.AddScoped<ChuckNorrisService>();
+builder.Services.AddSingleton<IPipelineBuilder, PipelineBuilder>();
 
 builder.Services.AddHttpClientWithRetryPolicy(logger);
 //builder.Services.AddHttpClientWithRetryPolicy("System3", logger);
