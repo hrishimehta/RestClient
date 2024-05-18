@@ -4,10 +4,27 @@ namespace RestClient.Shared.Entities
 {
     public class RetryPolicyConfiguration
     {
+        public string Name { get; set; }
+
         public RetryPolicy Retry { get; set; } = new RetryPolicy();
         public FaultTolerancePolicy FaultTolerancePolicy { get; set; } = new FaultTolerancePolicy();
 
         public Timeout Timeout { get; set; } = new Timeout();
+
+        /// <summary>
+        /// Configuration for fault injection chaos.
+        /// </summary>
+        public FaultChaosConfig FaultChaos { get; set; }
+
+        /// <summary>
+        /// Configuration for latency injection chaos.
+        /// </summary>
+        public LatencyChaosConfig LatencyChaos { get; set; }
+
+        /// <summary>
+        /// Configuration for outcome injection chaos.
+        /// </summary>
+        public OutcomeChaosConfig OutcomeChaos { get; set; }
 
     }
 
@@ -38,6 +55,71 @@ namespace RestClient.Shared.Entities
     public class Timeout
     {
         public int TimeoutDuration { get; set; } = 100;
+    }
+
+
+    /// <summary>
+    /// Represents the base class for chaos configurations with an injection rate.
+    /// </summary>
+    public abstract class ChaosConfigBase
+    {
+        /// <summary>
+        /// The rate at which the chaos injection is applied.
+        /// </summary>
+        public double InjectionRate { get; set; }
+
+        /// <summary>
+        /// Validates the injection rate to be between 0 and 1 inclusive.
+        /// </summary>
+        /// <param name="injectionRate">The injection rate to validate.</param>
+        protected void ValidateInjectionRate(double injectionRate)
+        {
+            if (injectionRate < 0 || injectionRate > 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(injectionRate), "InjectionRate must be between 0 and 1 inclusive.");
+            }
+        }
+
+        /// <summary>
+        /// Validates the current configuration.
+        /// </summary>
+        public void Validate()
+        {
+            ValidateInjectionRate(InjectionRate);
+        }
+    }
+
+    /// <summary>
+    /// Configuration for fault injection chaos.
+    /// </summary>
+    public class FaultChaosConfig : ChaosConfigBase
+    {
+        /// <summary>
+        /// The type of fault to inject.
+        /// </summary>
+        public string Fault { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration for latency injection chaos.
+    /// </summary>
+    public class LatencyChaosConfig : ChaosConfigBase
+    {
+        /// <summary>
+        /// The amount of latency (in seconds) to inject.
+        /// </summary>
+        public int LatencySeconds { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration for outcome injection chaos.
+    /// </summary>
+    public class OutcomeChaosConfig : ChaosConfigBase
+    {
+        /// <summary>
+        /// The status code to return as the outcome.
+        /// </summary>
+        public int StatusCode { get; set; }
     }
 
 }

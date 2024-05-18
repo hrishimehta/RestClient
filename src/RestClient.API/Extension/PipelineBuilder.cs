@@ -2,13 +2,17 @@
 using Polly;
 using Polly.CircuitBreaker;
 using Polly.Retry;
+using Polly.Simmy.Fault;
+using Polly.Simmy.Latency;
+using Polly.Simmy.Outcomes;
 using RestClient.Shared.Entities;
+using System.Net;
 
 namespace RestClient.API.Extension
 {
     public static class PipelineBuilder
     {
-        public static ResiliencePipelineBuilder<HttpResponseMessage> BuildPipeline(RetryPolicyConfiguration retryPolicy, ILogger logger)
+        public static ResiliencePipeline<HttpResponseMessage> BuildPipeline(RetryPolicyConfiguration retryPolicy, ILogger logger)
         {
             var resiliencePipeline = new ResiliencePipelineBuilder<HttpResponseMessage>();
 
@@ -18,7 +22,7 @@ namespace RestClient.API.Extension
 
             resiliencePipeline.AddTimeout(TimeSpan.FromSeconds(retryPolicy?.Timeout.TimeoutDuration ?? 0));
 
-            return resiliencePipeline;
+            return resiliencePipeline.Build();
         }
 
         public static HttpRetryStrategyOptions GetHttpRetryStrategyOptions(RetryPolicyConfiguration retryPolicy, ILogger logger)
@@ -123,6 +127,77 @@ namespace RestClient.API.Extension
                     logger.LogInformation($"Circuit Breaker OnHalfOpened. Operation key {args.Context.OperationKey}");
                     return new ValueTask();
                 },
+            };
+        }
+
+        public static ChaosFaultStrategyOptions GetChaosFaultStrategyOptions(RetryPolicyConfiguration retryPolicy, ILogger logger)
+        {
+            return new ChaosFaultStrategyOptions()
+            {
+                InjectionRate = 0.1,
+                OnFaultInjected = args =>
+                {
+                    logger.LogInformation($"OnFaultInjected, Exception: {args.Fault.Message}, Operation: {args.Context.OperationKey}.");
+                    return default;
+                }
+            };
+        }
+
+        public static ChaosOutcomeStrategyOptions<HttpResponseMessage> GetChaosOutcomeStrategyOptions(RetryPolicyConfiguration retryPolicy, ILogger logger)
+        {
+            if (retryPolicy.LatencyChaos == null)
+            {
+                return new ChaosOutcomeStrategyOptions<HttpResponseMessage>
+                {
+                    InjectionRate = 0,
+                };
+            }
+           
+
+            if (!Enum.IsDefined(typeof(HttpStatusCode), retryPolicy.OutcomeChaos.StatusCode))
+            {
+                throw new ArgumentException($"Invalid outcome (status code) provided. Policy Name: {retryPolicy.Name}");
+            }
+
+            HttpStatusCode httpStatusCode = (HttpStatusCode)retryPolicy.OutcomeChaos.StatusCode;
+
+            return new ChaosOutcomeStrategyOptions<HttpResponseMessage>()
+            {
+                InjectionRate = retryPolicy.OutcomeChaos.InjectionRate,
+                OutcomeGenerator = new OutcomeGenerator<HttpResponseMessage>()
+                                        .AddResult(() => new HttpResponseMessage(httpStatusCode)),
+                OnOutcomeInjected = args =>
+                {
+                    logger.LogInformation($"OnOutcomeInjected , Outcome: {args.Outcome.Result}, Operation: {args.Context.OperationKey}.");
+                    return default;
+                }
+            };
+        }
+
+        public static ChaosLatencyStrategyOptions GetChaosLatencyStrategyOptions(RetryPolicyConfiguration retryPolicy, ILogger logger)
+        {
+            if (retryPolicy.LatencyChaos == null)
+            {
+                return new ChaosLatencyStrategyOptions
+                {
+                    InjectionRate = 0,
+                };
+            }
+
+            if (retryPolicy.LatencyChaos.LatencySeconds < 0)
+            {
+                throw new ArgumentException($"Invalid Latency seconds provided Policy Name {retryPolicy.Name}");
+            }
+
+            return new ChaosLatencyStrategyOptions
+            {
+                InjectionRate = retryPolicy.LatencyChaos.InjectionRate,
+                Latency = TimeSpan.FromSeconds(retryPolicy.LatencyChaos.LatencySeconds),
+                OnLatencyInjected = args =>
+                {
+                    logger.LogInformation($"OnLatencyInjected, Latency: {args.Latency}, Operation: {args.Context.OperationKey}.");
+                    return default;
+                }
             };
         }
     }
