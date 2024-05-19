@@ -76,7 +76,7 @@ namespace RestClient.API.Extension
         ///<inheritdoc/>
         public ResiliencePipeline<HttpResponseMessage> BuildPipeline(string retryPolicyName)
         {
-            var retryPoliciesSection = this.configuration.GetSection("RetryPolicies").Get<List<RetryPolicyConfiguration>>();
+            var retryPoliciesSection = this.configuration.GetSection("RetryPolicySettings").Get<List<RetryPolicySettings>>();
 
             var retryPolicy = retryPoliciesSection.FirstOrDefault(policy => policy.Name == retryPolicyName);
 
@@ -87,11 +87,11 @@ namespace RestClient.API.Extension
 
             var resiliencePipeline = new ResiliencePipelineBuilder<HttpResponseMessage>();
 
-            resiliencePipeline.AddRetry(GetHttpRetryStrategyOptions(retryPolicy));
+            resiliencePipeline.AddRetry(GetHttpRetryStrategyOptions(retryPolicy.Policy));
 
-            resiliencePipeline.AddCircuitBreaker(GetHttpCircuitBreakerStrategyOptions(retryPolicy));
+            resiliencePipeline.AddCircuitBreaker(GetHttpCircuitBreakerStrategyOptions(retryPolicy.Policy));
 
-            resiliencePipeline.AddTimeout(TimeSpan.FromSeconds(retryPolicy.Timeout));
+            resiliencePipeline.AddTimeout(TimeSpan.FromSeconds(retryPolicy.Policy.Timeout));
 
             return resiliencePipeline.Build();
         }
