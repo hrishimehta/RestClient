@@ -12,20 +12,9 @@ namespace RestClient.Shared.Entities
         public int Timeout { get; set; } = 100;
 
         /// <summary>
-        /// Configuration for fault injection chaos.
+        ///  Configuration for chaos policies
         /// </summary>
-        public FaultChaosConfig FaultChaos { get; set; }
-
-        /// <summary>
-        /// Configuration for latency injection chaos.
-        /// </summary>
-        public LatencyChaosConfig LatencyChaos { get; set; }
-
-        /// <summary>
-        /// Configuration for outcome injection chaos.
-        /// </summary>
-        public OutcomeChaosConfig OutcomeChaos { get; set; }
-
+        public List<ChaosPolicyConfiguration> ChaosPolicies { get; set; }
     }
 
     public class RetryPolicy
@@ -50,53 +39,19 @@ namespace RestClient.Shared.Entities
         public List<string> OpenCircuitForExceptions { get; set; } = new();
     }
 
-    /// <summary>
-    /// Represents the base class for chaos configurations with an injection rate.
-    /// </summary>
-    public abstract class ChaosConfigBase
+    public class ChaosPolicyConfiguration
     {
-        /// <summary>
-        /// The rate at which the chaos injection is applied.
-        /// </summary>
+        public string Type { get; set; }
         public double InjectionRate { get; set; }
-
-        /// <summary>
-        /// Validates the injection rate to be between 0 and 1 inclusive.
-        /// </summary>
-        /// <param name="injectionRate">The injection rate to validate.</param>
-        protected void ValidateInjectionRate(double injectionRate)
-        {
-            if (injectionRate < 0 || injectionRate > 1)
-            {
-                throw new ArgumentOutOfRangeException(nameof(injectionRate), "InjectionRate must be between 0 and 1 inclusive.");
-            }
-        }
-
-        /// <summary>
-        /// Validates the current configuration.
-        /// </summary>
-        public void Validate()
-        {
-            ValidateInjectionRate(InjectionRate);
-        }
-    }
-
-    /// <summary>
-    /// Configuration for fault injection chaos.
-    /// </summary>
-    public class FaultChaosConfig : ChaosConfigBase
-    {
-        /// <summary>
-        /// The type of fault to inject.
-        /// </summary>
         public string Fault { get; set; }
+        public int LatencySeconds { get; set; } = 0;
+        public int? StatusCode { get; set; }
 
         public Exception GetException()
         {
             try
             {
-                Type exceptionType = Type.GetType(this.Fault);
-
+                Type exceptionType = System.Type.GetType(this.Fault);
 
                 if (!typeof(Exception).IsAssignableFrom(exceptionType))
                 {
@@ -114,27 +69,4 @@ namespace RestClient.Shared.Entities
             }
         }
     }
-
-    /// <summary>
-    /// Configuration for latency injection chaos.
-    /// </summary>
-    public class LatencyChaosConfig : ChaosConfigBase
-    {
-        /// <summary>
-        /// The amount of latency (in seconds) to inject.
-        /// </summary>
-        public int LatencySeconds { get; set; }
-    }
-
-    /// <summary>
-    /// Configuration for outcome injection chaos.
-    /// </summary>
-    public class OutcomeChaosConfig : ChaosConfigBase
-    {
-        /// <summary>
-        /// The status code to return as the outcome.
-        /// </summary>
-        public int StatusCode { get; set; }
-    }
-
 }

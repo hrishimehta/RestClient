@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Polly.Registry;
 using RestClient.Infrastructure.Services;
 
 namespace RestClient.API.Controllers
@@ -19,6 +20,10 @@ namespace RestClient.API.Controllers
         {
             try
             {
+                // Fetch pipeline "A"
+                //var registry = new ResiliencePipelineRegistry<string>();
+                //Polly.ResiliencePipeline pipelineA = registry.GetPipeline("ChuckNorrisServiceRetryPolicy");
+
                 var joke = await _chuckNorrisService.GetRandomJoke();
                 return Ok(joke.Value);
             }

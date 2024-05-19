@@ -43,24 +43,23 @@ namespace RestClient.API.Extension
         /// <summary>
         /// Gets the chaos fault strategy options based on the provided retry policy configuration.
         /// </summary>
-        /// <param name="retryPolicy">The retry policy configuration.</param>
-        /// <param name="logger">The logger.</param>
+        /// <param name="chaosPolicyConfiguration">The chaos policy configuration.</param>
         /// <returns>The chaos fault strategy options.</returns>
-        ChaosFaultStrategyOptions GetChaosFaultStrategyOptions(RetryPolicyConfiguration retryPolicy, ILogger logger);
+        ChaosFaultStrategyOptions GetChaosFaultStrategyOptions(ChaosPolicyConfiguration chaosPolicyConfiguration);
 
         /// <summary>
         /// Gets the chaos outcome strategy options based on the provided retry policy configuration.
         /// </summary>
-        /// <param name="retryPolicy">The retry policy configuration.</param>
+        /// <param name="chaosPolicyConfiguration">The chaos policy configuration.</param>
         /// <returns>The chaos outcome strategy options.</returns>
-        ChaosOutcomeStrategyOptions<HttpResponseMessage> GetChaosOutcomeStrategyOptions(RetryPolicyConfiguration retryPolicy);
+        ChaosOutcomeStrategyOptions<HttpResponseMessage> GetChaosOutcomeStrategyOptions(ChaosPolicyConfiguration chaosPolicyConfiguration);
 
         /// <summary>
         /// Gets the chaos latency strategy options based on the provided retry policy configuration.
         /// </summary>
-        /// <param name="retryPolicy">The retry policy configuration.</param>
+        /// <param name="chaosPolicyConfiguration">The chaos policy configuration.</param>
         /// <returns>The chaos latency strategy options.</returns>
-        ChaosLatencyStrategyOptions GetChaosLatencyStrategyOptions(RetryPolicyConfiguration retryPolicy);
+        ChaosLatencyStrategyOptions GetChaosLatencyStrategyOptions(ChaosPolicyConfiguration chaosPolicyConfiguration);
     }
 
     ///<inheritdoc/>
@@ -93,12 +92,6 @@ namespace RestClient.API.Extension
             resiliencePipeline.AddCircuitBreaker(GetHttpCircuitBreakerStrategyOptions(retryPolicy));
 
             resiliencePipeline.AddTimeout(TimeSpan.FromSeconds(retryPolicy.Timeout));
-
-            resiliencePipeline.AddChaosFault(GetChaosFaultStrategyOptions(retryPolicy, logger));
-
-            resiliencePipeline.AddChaosOutcome(GetChaosOutcomeStrategyOptions(retryPolicy));
-
-            resiliencePipeline.AddChaosLatency(GetChaosLatencyStrategyOptions(retryPolicy));
 
             return resiliencePipeline.Build();
         }
@@ -176,7 +169,7 @@ namespace RestClient.API.Extension
                     return new ValueTask<bool>(false);
                 }
 
-                var isCircuitBreakerSettingsProvided = faultTolerancePolicy != null 
+                var isCircuitBreakerSettingsProvided = faultTolerancePolicy != null
                                                         && faultTolerancePolicy.OpenCircuitForHttpCodes != null
                                                         && faultTolerancePolicy.OpenCircuitForExceptions != null;
 
@@ -185,7 +178,7 @@ namespace RestClient.API.Extension
                     return new ValueTask<bool>(true);
 
                 if (faultTolerancePolicy?.OpenCircuitForHttpCodes != null
-                            && args.Outcome.Result!=null
+                            && args.Outcome.Result != null
                             && faultTolerancePolicy.OpenCircuitForHttpCodes.Contains((int)args.Outcome.Result.StatusCode))
                     return new ValueTask<bool>(true);
 
@@ -226,21 +219,23 @@ namespace RestClient.API.Extension
             };
         }
 
+       
+
         ///<inheritdoc/>
-        public ChaosFaultStrategyOptions GetChaosFaultStrategyOptions(RetryPolicyConfiguration retryPolicy, ILogger logger)
+        public ChaosFaultStrategyOptions GetChaosFaultStrategyOptions(ChaosPolicyConfiguration chaosPolicyConfiguration)
         {
-            if (retryPolicy.FaultChaos == null)
+            if (chaosPolicyConfiguration == null)
             {
                 return new ChaosFaultStrategyOptions()
                 {
                     InjectionRate = 0
                 };
             }
-            var exception = retryPolicy.FaultChaos.GetException();
+            var exception = chaosPolicyConfiguration.GetException();
 
             return new ChaosFaultStrategyOptions()
             {
-                InjectionRate = retryPolicy.FaultChaos.InjectionRate,
+                InjectionRate = chaosPolicyConfiguration.InjectionRate,
                 FaultGenerator = new FaultGenerator()
                             .AddException(() => exception),
                 OnFaultInjected = args =>
@@ -252,9 +247,9 @@ namespace RestClient.API.Extension
         }
 
         ///<inheritdoc/>
-        public ChaosOutcomeStrategyOptions<HttpResponseMessage> GetChaosOutcomeStrategyOptions(RetryPolicyConfiguration retryPolicy)
+        public ChaosOutcomeStrategyOptions<HttpResponseMessage> GetChaosOutcomeStrategyOptions(ChaosPolicyConfiguration chaosPolicyConfiguration)
         {
-            if (retryPolicy.LatencyChaos == null)
+            if (chaosPolicyConfiguration == null)
             {
                 return new ChaosOutcomeStrategyOptions<HttpResponseMessage>
                 {
@@ -263,16 +258,16 @@ namespace RestClient.API.Extension
             }
 
 
-            if (!Enum.IsDefined(typeof(HttpStatusCode), retryPolicy.OutcomeChaos.StatusCode))
+            if (!Enum.IsDefined(typeof(HttpStatusCode), chaosPolicyConfiguration.StatusCode))
             {
-                throw new ArgumentException($"Invalid outcome (status code) provided. Policy Name: {retryPolicy.Name}");
+                throw new ArgumentException($"Invalid outcome (status code) provided. status code provided {chaosPolicyConfiguration.StatusCode}");
             }
 
-            HttpStatusCode httpStatusCode = (HttpStatusCode)retryPolicy.OutcomeChaos.StatusCode;
+            HttpStatusCode httpStatusCode = (HttpStatusCode)chaosPolicyConfiguration.StatusCode;
 
             return new ChaosOutcomeStrategyOptions<HttpResponseMessage>()
             {
-                InjectionRate = retryPolicy.OutcomeChaos.InjectionRate,
+                InjectionRate = chaosPolicyConfiguration.InjectionRate,
                 OutcomeGenerator = new OutcomeGenerator<HttpResponseMessage>()
                                         .AddResult(() => new HttpResponseMessage(httpStatusCode)),
                 OnOutcomeInjected = args =>
@@ -284,9 +279,9 @@ namespace RestClient.API.Extension
         }
 
         ///<inheritdoc/>
-        public ChaosLatencyStrategyOptions GetChaosLatencyStrategyOptions(RetryPolicyConfiguration retryPolicy)
+        public ChaosLatencyStrategyOptions GetChaosLatencyStrategyOptions(ChaosPolicyConfiguration chaosPolicyConfiguration)
         {
-            if (retryPolicy.LatencyChaos == null)
+            if (chaosPolicyConfiguration == null)
             {
                 return new ChaosLatencyStrategyOptions
                 {
@@ -294,15 +289,15 @@ namespace RestClient.API.Extension
                 };
             }
 
-            if (retryPolicy.LatencyChaos.LatencySeconds < 0)
+            if (chaosPolicyConfiguration.LatencySeconds < 0)
             {
-                throw new ArgumentException($"Invalid Latency seconds provided Policy Name {retryPolicy.Name}");
+                throw new ArgumentException($"Invalid Latency seconds provided.Latencey seconds provided {chaosPolicyConfiguration.LatencySeconds}");
             }
 
             return new ChaosLatencyStrategyOptions
             {
-                InjectionRate = retryPolicy.LatencyChaos.InjectionRate,
-                Latency = TimeSpan.FromSeconds(retryPolicy.LatencyChaos.LatencySeconds),
+                InjectionRate = chaosPolicyConfiguration.InjectionRate,
+                Latency = TimeSpan.FromSeconds(chaosPolicyConfiguration.LatencySeconds),
                 OnLatencyInjected = args =>
                 {
                     logger.LogInformation($"OnLatencyInjected, Latency: {args.Latency}, Operation: {args.Context.OperationKey}.");
