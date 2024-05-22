@@ -21,7 +21,7 @@ namespace RestClient.Infrastructure.Services
                 _logger.LogWarning($"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} - First call");
                 var httpClient = _httpClientFactory.CreateClient("ChuckNorrisService");
                 // change /jokes/random1 for working solution
-                var jokeResponse = await httpClient.GetFromJsonAsync<ChuckNorrisJoke>("https://api.chucknorris.io/jokes/random"); 
+                var jokeResponse = await httpClient.GetFromJsonAsync<ChuckNorrisJoke>("https://localhost:7082/TestEndPoint"); 
                 return jokeResponse;
             }
             catch (HttpRequestException ex)

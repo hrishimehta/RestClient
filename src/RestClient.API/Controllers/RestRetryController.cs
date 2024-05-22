@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Polly;
 using Polly.Registry;
 using RestClient.API.Extension;
 using RestClient.Domain;
@@ -39,25 +40,49 @@ namespace RestClient.API.Controllers
         }
 
         [HttpGet("mongoCall")]
-        public async Task<IActionResult> MongoCall()
+        public IActionResult MongoCall()
         {
             try
             {
-                var mongoResilience = this.pipelineBuilder.BuildPipeline("ChuckNorrisServiceRetryPolicy");
+                var mongoResilience = this.pipelineBuilder.BuildPipeline<Employee>("MongoRetryPolicy");
 
-                //mongoResilience.ExecuteAsync(async () => await _chuckNorrisService.GetRandomJoke());
-
-                //mongoRessiliency.ExecuteAsync<ChuckNorrisJoke>( async () =>
-                //{
-                //    await _chuckNorrisService.GetRandomJoke();
-                //});
-                var joke = await _chuckNorrisService.GetRandomJoke();
-                return Ok(joke.Value);
+                var result = mongoResilience.Execute<Employee>(() =>
+                {
+                    return this.GetEmployeeDataFromMongo();
+                });
+                Console.WriteLine("Employee info" + result.Id + "," + result.Name);
+                return Ok(result);
             }
             catch (Exception ex)
             {
                 // Handle exceptions, log errors, etc.
                 return StatusCode(500, "Internal Server Error");
+            }
+        }
+
+        public record Employee
+        {
+            public int Id { get; set; }
+
+            public string Name { get; set; }
+        }
+
+        private Employee GetEmployeeDataFromMongo()
+        {
+            try
+            {
+                //throw new Exception();
+
+                return new Employee()
+                {
+                    Id = 1,
+                    Name = "test"
+                };
+            }
+            catch (Exception)
+            {
+
+                throw;
             }
         }
     }

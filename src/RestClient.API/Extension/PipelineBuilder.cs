@@ -1,16 +1,11 @@
-﻿using Amazon.Runtime;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Http.Resilience;
-using Polly;
+﻿using Polly;
 using Polly.CircuitBreaker;
 using Polly.Retry;
-using Polly.Simmy;
 using Polly.Simmy.Fault;
 using Polly.Simmy.Latency;
 using Polly.Simmy.Outcomes;
 using RestClient.Shared.Entities;
 using System.Net;
-using System.Reflection;
 
 namespace RestClient.API.Extension
 {
@@ -24,28 +19,28 @@ namespace RestClient.API.Extension
         /// </summary>
         /// <param name="retryPolicyName">Retry policy name</param>
         /// <returns>The resilience pipeline for HTTP client requests.</returns>
-        ResiliencePipeline<HttpResponseMessage> BuildPipeline(string retryPolicyName);
+        ResiliencePipeline<T> BuildPipeline<T>(string retryPolicyName); 
 
         /// <summary>
-        /// Gets the HTTP retry strategy options based on the provided retry policy configuration.
+        /// Gets the retry strategy options based on the provided retry policy configuration.
         /// </summary>
         /// <param name="retryPolicy">The retry policy configuration.</param>
-        /// <returns>The HTTP retry strategy options.</returns>
-        HttpRetryStrategyOptions GetHttpRetryStrategyOptions(RetryPolicyConfiguration retryPolicy);
+        /// <returns>The retry strategy options.</returns>
+        RetryStrategyOptions<T> GetRetryStrategyOptions<T>(RetryPolicyConfiguration retryPolicy);
 
         /// <summary>
-        /// Gets the HTTP circuit breaker strategy options based on the provided retry policy configuration.
+        /// Gets the circuit breaker strategy options based on the provided retry policy configuration.
         /// </summary>
         /// <param name="retryPolicy">The retry policy configuration.</param>
-        /// <returns>The HTTP circuit breaker strategy options.</returns>
-        HttpCircuitBreakerStrategyOptions GetHttpCircuitBreakerStrategyOptions(RetryPolicyConfiguration retryPolicy);
+        /// <returns>The  circuit breaker strategy options.</returns>
+        CircuitBreakerStrategyOptions<T> GetCircuitBreakerStrategyOptions<T>(RetryPolicyConfiguration retryPolicy);
 
         /// <summary>
-        /// Gets the chaos fault strategy options based on the provided retry policy configuration.
+        /// Gets the http chaos fault strategy options based on the provided retry policy configuration.
         /// </summary>
         /// <param name="chaosPolicyConfiguration">The chaos policy configuration.</param>
         /// <returns>The chaos fault strategy options.</returns>
-        ChaosFaultStrategyOptions GetChaosFaultStrategyOptions(ChaosPolicyConfiguration chaosPolicyConfiguration);
+        ChaosFaultStrategyOptions GetHttpChaosFaultStrategyOptions(ChaosPolicyConfiguration chaosPolicyConfiguration);
 
         /// <summary>
         /// Gets the chaos outcome strategy options based on the provided retry policy configuration.
@@ -63,7 +58,7 @@ namespace RestClient.API.Extension
     }
 
     ///<inheritdoc/>
-    internal class PipelineBuilder : IPipelineBuilder
+    internal class PipelineBuilder  : IPipelineBuilder
     {
         private ILogger<PipelineBuilder> logger;
         private IConfiguration configuration;
@@ -74,7 +69,7 @@ namespace RestClient.API.Extension
         }
 
         ///<inheritdoc/>
-        public ResiliencePipeline<HttpResponseMessage> BuildPipeline(string retryPolicyName)
+        public ResiliencePipeline<T> BuildPipeline<T>(string retryPolicyName)
         {
             var retryPoliciesSection = this.configuration.GetSection("RetryPolicySettings").Get<List<RetryPolicySettings>>();
 
@@ -85,11 +80,11 @@ namespace RestClient.API.Extension
                 throw new ArgumentException($"Missing policy configuration {retryPolicyName}");
             }
 
-            var resiliencePipeline = new ResiliencePipelineBuilder<HttpResponseMessage>();
+            var resiliencePipeline = new ResiliencePipelineBuilder<T>();
 
-            resiliencePipeline.AddRetry(GetHttpRetryStrategyOptions(retryPolicy.Policy));
+            resiliencePipeline.AddRetry(GetRetryStrategyOptions<T>(retryPolicy.Policy));
 
-            resiliencePipeline.AddCircuitBreaker(GetHttpCircuitBreakerStrategyOptions(retryPolicy.Policy));
+            resiliencePipeline.AddCircuitBreaker<T>(GetCircuitBreakerStrategyOptions<T>(retryPolicy.Policy));
 
             resiliencePipeline.AddTimeout(TimeSpan.FromSeconds(retryPolicy.Policy.Timeout));
 
@@ -97,16 +92,16 @@ namespace RestClient.API.Extension
         }
 
         ///<inheritdoc/>
-        public HttpRetryStrategyOptions GetHttpRetryStrategyOptions(RetryPolicyConfiguration retryPolicy)
+        public RetryStrategyOptions<T> GetRetryStrategyOptions<T>(RetryPolicyConfiguration retryPolicy)
         {
-            Func<RetryPredicateArguments<HttpResponseMessage>, ValueTask<bool>> shouldHandleForRetry = args =>
+            Func<RetryPredicateArguments<T>, ValueTask<bool>> shouldHandleForRetry = args =>
             {
                 if (args.Outcome.Result == null && args.Outcome.Exception == null)
                 {
                     return new ValueTask<bool>(false);
                 }
 
-                if (args.Outcome.Result != null && args.Outcome.Result.IsSuccessStatusCode)
+                if (args.Outcome.Result != null && IsSuccessStatusCode(args.Outcome.Result))
                 {
                     return new ValueTask<bool>(false);
                 }
@@ -114,12 +109,12 @@ namespace RestClient.API.Extension
                 var isRetrySettingsProvided = retryPolicy?.Retry != null && retryPolicy.Retry.RetryForHttpCodes != null && retryPolicy.Retry.RetryForExceptions != null;
 
                 // if retry setting nor provided and response is not success status code than execute retry polciy
-                if (!isRetrySettingsProvided && !args.Outcome.Result.IsSuccessStatusCode)
+                if (!isRetrySettingsProvided && !IsSuccessStatusCode(args.Outcome.Result))
                     return new ValueTask<bool>(true);
 
                 if (retryPolicy?.Retry.RetryForHttpCodes != null
                             && args.Outcome.Result != null
-                            && retryPolicy.Retry.RetryForHttpCodes.Contains((int)args.Outcome.Result.StatusCode))
+                            && IsHttpStatusCodeMatch(args.Outcome.Result, retryPolicy.Retry.RetryForHttpCodes))
                     return new ValueTask<bool>(true);
 
                 // Check for HttpRequestException
@@ -133,7 +128,7 @@ namespace RestClient.API.Extension
             };
             var delayBackoffType = Enum.Parse<DelayBackoffType>(retryPolicy?.Retry.RetryType ?? DelayBackoffType.Constant.ToString(), true);
 
-            return new HttpRetryStrategyOptions
+            return new RetryStrategyOptions<T>
             {
                 // Customize and configure the retry logic.
                 BackoffType = delayBackoffType,
@@ -142,14 +137,14 @@ namespace RestClient.API.Extension
                 ShouldHandle = shouldHandleForRetry,
                 OnRetry = args =>
                 {
-                    logger.LogWarning($"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} - Retry #{args.AttemptNumber}, Duration of attempt {args.Duration.TotalSeconds} seconds. Exception: {args.Outcome.Exception?.Message} Status: {args.Outcome.Result?.StatusCode}");
+                    logger.LogWarning($"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} - Retry #{args.AttemptNumber}, Duration of attempt {args.Duration.TotalSeconds} seconds. Exception: {args.Outcome.Exception?.Message} Status: {GetStatusCode(args.Outcome.Result)}");
                     return new ValueTask();
                 }
             };
         }
 
         ///<inheritdoc/>
-        public HttpCircuitBreakerStrategyOptions GetHttpCircuitBreakerStrategyOptions(RetryPolicyConfiguration retryPolicy)
+        public CircuitBreakerStrategyOptions<T> GetCircuitBreakerStrategyOptions<T>(RetryPolicyConfiguration retryPolicy) 
         {
             var faultTolerancePolicy = retryPolicy?.FaultTolerancePolicy;
             var failureThreshold = faultTolerancePolicy?.FailureThreshold ?? 0;
@@ -157,14 +152,14 @@ namespace RestClient.API.Extension
             var breakDurationSeconds = TimeSpan.FromSeconds(faultTolerancePolicy?.BreakDurationSeconds ?? 0);
             var minThroughPut = faultTolerancePolicy?.MinThroughPut ?? 0;
 
-            Func<CircuitBreakerPredicateArguments<HttpResponseMessage>, ValueTask<bool>> shouldHandle = args =>
+            Func<CircuitBreakerPredicateArguments<T>, ValueTask<bool>> shouldHandle = args =>
             {
                 if (args.Outcome.Result == null && args.Outcome.Exception == null)
                 {
                     return new ValueTask<bool>(false);
                 }
 
-                if (args.Outcome.Result != null && args.Outcome.Result.IsSuccessStatusCode)
+                if (args.Outcome.Result != null && IsSuccessStatusCode(args.Outcome.Result))
                 {
                     return new ValueTask<bool>(false);
                 }
@@ -174,12 +169,12 @@ namespace RestClient.API.Extension
                                                         && faultTolerancePolicy.OpenCircuitForExceptions != null;
 
                 // Check for non-successful status code
-                if (!isCircuitBreakerSettingsProvided && !args.Outcome.Result.IsSuccessStatusCode)
+                if (!isCircuitBreakerSettingsProvided && !IsSuccessStatusCode(args.Outcome.Result))
                     return new ValueTask<bool>(true);
 
                 if (faultTolerancePolicy?.OpenCircuitForHttpCodes != null
                             && args.Outcome.Result != null
-                            && faultTolerancePolicy.OpenCircuitForHttpCodes.Contains((int)args.Outcome.Result.StatusCode))
+                            && IsHttpStatusCodeMatch(args.Outcome.Result, faultTolerancePolicy.OpenCircuitForHttpCodes))
                     return new ValueTask<bool>(true);
 
                 // Check for HttpRequestException
@@ -192,7 +187,7 @@ namespace RestClient.API.Extension
                 return new ValueTask<bool>(false);
             };
 
-            return new HttpCircuitBreakerStrategyOptions
+            return new CircuitBreakerStrategyOptions<T>
             {
                 // Customize and configure the circuit breaker logic.
                 SamplingDuration = samplingDuration,
@@ -203,12 +198,12 @@ namespace RestClient.API.Extension
                 Name = retryPolicy.Name,
                 OnOpened = args =>
                 {
-                    logger.LogInformation($"Circuit Opened. Break duration {args.BreakDuration}, IsManual {args.IsManual},  Exception: {args.Outcome.Exception?.Message} Status: {args.Outcome.Result?.StatusCode} ");
+                    logger.LogInformation($"Circuit Opened. Break duration {args.BreakDuration}, IsManual {args.IsManual},  Exception: {args.Outcome.Exception?.Message} Status: {GetStatusCode(args.Outcome.Result)} ");
                     return new ValueTask();
                 },
                 OnClosed = args =>
                 {
-                    logger.LogInformation($"Circuit Breaker OnClosed.IsManual {args.IsManual},  Exception: {args.Outcome.Exception?.Message} Status: {args.Outcome.Result?.StatusCode} ");
+                    logger.LogInformation($"Circuit Breaker OnClosed.IsManual {args.IsManual},  Exception: {args.Outcome.Exception?.Message} Status: {GetStatusCode(args.Outcome.Result)} ");
                     return new ValueTask();
                 },
                 OnHalfOpened = args =>
@@ -219,10 +214,8 @@ namespace RestClient.API.Extension
             };
         }
 
-       
-
         ///<inheritdoc/>
-        public ChaosFaultStrategyOptions GetChaosFaultStrategyOptions(ChaosPolicyConfiguration chaosPolicyConfiguration)
+        public ChaosFaultStrategyOptions GetHttpChaosFaultStrategyOptions(ChaosPolicyConfiguration chaosPolicyConfiguration)
         {
             if (chaosPolicyConfiguration == null)
             {
@@ -304,6 +297,36 @@ namespace RestClient.API.Extension
                     return default;
                 }
             };
+        }
+
+        private bool IsSuccessStatusCode<T>(T result)
+        {
+            if (result is HttpResponseMessage responseMessage)
+            {
+                return responseMessage.IsSuccessStatusCode;
+            }
+
+            return false; // Adjust this based on other type T checks
+        }
+
+        private string GetStatusCode<T>(T result)
+        {
+            if (result is HttpResponseMessage responseMessage)
+            {
+                return responseMessage.StatusCode.ToString();
+            }
+
+            return "Unknown"; // Adjust this based on other type T checks
+        }
+
+        private bool IsHttpStatusCodeMatch<T>(T result, List<int> retryForHttpCodes)
+        {
+            if (result is HttpResponseMessage responseMessage)
+            {
+                return retryForHttpCodes.Contains((int)responseMessage.StatusCode);
+            }
+
+            return false; // Adjust this based on other type T checks
         }
     }
 }

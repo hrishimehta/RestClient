@@ -43,10 +43,10 @@ namespace RestClient.API.Extension
                        .AddResilienceHandler(httpClientSetting.Name, builder =>
                        {
                            // See: https://www.pollydocs.org/strategies/retry.html
-                           builder.AddRetry(pipelineBuilder.GetHttpRetryStrategyOptions(retryPolicy));
+                           builder.AddRetry(pipelineBuilder.GetRetryStrategyOptions<HttpResponseMessage>(retryPolicy));
 
                            // See: https://www.pollydocs.org/strategies/circuit-breaker.html
-                           builder.AddCircuitBreaker(pipelineBuilder.GetHttpCircuitBreakerStrategyOptions(retryPolicy));
+                           builder.AddCircuitBreaker(pipelineBuilder.GetCircuitBreakerStrategyOptions<HttpResponseMessage>(retryPolicy));
 
                            // See: https://www.pollydocs.org/strategies/timeout.html
                            builder.AddTimeout(TimeSpan.FromSeconds(retryPolicy.Timeout));
@@ -67,7 +67,7 @@ namespace RestClient.API.Extension
                 switch (setting.Type)
                 {
                     case "Fault":
-                        builder.AddChaosFault(pipelineBuilder.GetChaosFaultStrategyOptions(setting));
+                        builder.AddChaosFault(pipelineBuilder.GetHttpChaosFaultStrategyOptions(setting));
                         break;
                     case "Latency":
                         builder.AddChaosLatency(pipelineBuilder.GetChaosLatencyStrategyOptions(setting));
@@ -78,9 +78,5 @@ namespace RestClient.API.Extension
                 }
             }
         }
-
-
-
-
     }
 }
