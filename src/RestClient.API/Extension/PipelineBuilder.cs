@@ -19,7 +19,7 @@ namespace RestClient.API.Extension
         /// </summary>
         /// <param name="retryPolicyName">Retry policy name</param>
         /// <returns>The resilience pipeline for HTTP client requests.</returns>
-        ResiliencePipeline<T> BuildPipeline<T>(string retryPolicyName); 
+        ResiliencePipeline<T> BuildPipeline<T>(string retryPolicyName);
 
         /// <summary>
         /// Gets the retry strategy options based on the provided retry policy configuration.
@@ -58,7 +58,7 @@ namespace RestClient.API.Extension
     }
 
     ///<inheritdoc/>
-    internal class PipelineBuilder  : IPipelineBuilder
+    public class PipelineBuilder : IPipelineBuilder
     {
         private ILogger<PipelineBuilder> logger;
         private IConfiguration configuration;
@@ -144,7 +144,7 @@ namespace RestClient.API.Extension
         }
 
         ///<inheritdoc/>
-        public CircuitBreakerStrategyOptions<T> GetCircuitBreakerStrategyOptions<T>(RetryPolicyConfiguration retryPolicy) 
+        public CircuitBreakerStrategyOptions<T> GetCircuitBreakerStrategyOptions<T>(RetryPolicyConfiguration retryPolicy)
         {
             var faultTolerancePolicy = retryPolicy?.FaultTolerancePolicy;
             var failureThreshold = faultTolerancePolicy?.FailureThreshold ?? 0;
@@ -279,6 +279,7 @@ namespace RestClient.API.Extension
                 return new ChaosLatencyStrategyOptions
                 {
                     InjectionRate = 0,
+                    Latency = TimeSpan.Zero
                 };
             }
 

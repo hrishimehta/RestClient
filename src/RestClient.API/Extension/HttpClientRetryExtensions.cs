@@ -1,9 +1,4 @@
-﻿using Amazon.Runtime;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Http.Resilience;
-using Polly;
-using Polly.CircuitBreaker;
-using Polly.Retry;
+﻿using Polly;
 using Polly.Simmy;
 using RestClient.Shared.Entities;
 

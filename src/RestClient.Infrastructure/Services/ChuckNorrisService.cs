@@ -1,9 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
 using RestClient.Domain;
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Json;
 
 namespace RestClient.Infrastructure.Services
 {
+    [ExcludeFromCodeCoverage]
     public class ChuckNorrisService
     {
         private readonly IHttpClientFactory _httpClientFactory;

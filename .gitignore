@@ -32,3 +32,10 @@
 /src/RestClient.MSAPI/RestClient.MSAPI/bin/Debug/net6.0
 /src/RestClient.NewAPI/RestClient.NewAPI/obj
 /src/RestClient.NewAPI/RestClient.NewAPI/bin/Debug/net6.0
+/tests/RestClient.API.Tests/coverage-report
+/tests/RestClient.API.Tests/TestResults
+/tests/RestClient.Client.Tests/TestResults
+/tests/RestClient.Domain.Tests/TestResults
+/tests/RestClient.Infrastructure.Tests/TestResults
+/tests/RestClient.Shared.Tests/TestResults
+/tests/RestClient.Mongo.Tests/TestResults

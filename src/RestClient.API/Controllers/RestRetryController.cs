@@ -4,11 +4,13 @@ using Polly.Registry;
 using RestClient.API.Extension;
 using RestClient.Domain;
 using RestClient.Infrastructure.Services;
+using System.Diagnostics.CodeAnalysis;
 
 namespace RestClient.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [ExcludeFromCodeCoverage]
     public class RestRetryController : ControllerBase
     {
         private readonly ChuckNorrisService _chuckNorrisService;
